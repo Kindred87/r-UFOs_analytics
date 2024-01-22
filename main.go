@@ -70,8 +70,8 @@ func main() {
 }
 
 func getCredsFromEnvOrFile(filename string) (AppCreds, error) {
-	clientID := os.Getenv("CLIENT_ID")
-	clientSecret := os.Getenv("CLIENT_SECRET")
+	clientID := os.Getenv("ANALYTICS_CLIENT_ID")
+	clientSecret := os.Getenv("ANALYTICS_CLIENT_SECRET")
 
 	if clientID != "" && clientSecret != "" {
 		return AppCreds{ClientID: clientID, ClientSecret: clientSecret}, nil
