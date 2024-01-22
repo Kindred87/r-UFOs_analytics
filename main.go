@@ -5,11 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
 
-	"gopkg.in/yaml.v2"
+	"github.com/joho/godotenv"
 )
 
 type AppCreds struct {
@@ -25,7 +26,13 @@ type TokenResponse struct {
 }
 
 func main() {
-	creds, err := getCredsFromEnvOrFile("creds.yaml")
+
+	err := godotenv.Load("creds.env") // Load .env file
+	if err != nil {
+		log.Fatalf("Error loading .env file: %s", err)
+	}
+
+	creds, err := getCredsFromEnvOrFile()
 	if err != nil {
 		fmt.Println("Error reading credentials:", err)
 		return
@@ -69,7 +76,7 @@ func main() {
 	}
 }
 
-func getCredsFromEnvOrFile(filename string) (AppCreds, error) {
+func getCredsFromEnvOrFile() (AppCreds, error) {
 	clientID := os.Getenv("ANALYTICS_CLIENT_ID")
 	clientSecret := os.Getenv("ANALYTICS_CLIENT_SECRET")
 
@@ -77,23 +84,7 @@ func getCredsFromEnvOrFile(filename string) (AppCreds, error) {
 		return AppCreds{ClientID: clientID, ClientSecret: clientSecret}, nil
 	}
 
-	return getCredsFromFile(filename)
-}
-
-func getCredsFromFile(filename string) (AppCreds, error) {
-	var creds AppCreds
-
-	data, err := os.ReadFile(filename)
-	if err != nil {
-		return creds, err
-	}
-
-	err = yaml.Unmarshal(data, &creds)
-	if err != nil {
-		return creds, err
-	}
-
-	return creds, nil
+	return AppCreds{}, fmt.Errorf("Credentials not found in environment variables")
 }
 
 func getAppToken(creds AppCreds) (*TokenResponse, error) {
