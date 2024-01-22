@@ -1,47 +1,23 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
-	"net/url"
-	"os"
-
-	"github.com/joho/godotenv"
+	"ufo_collector/authenticate"
 )
 
-type AppCreds struct {
-	ClientID     string `yaml:"ClientID"`
-	ClientSecret string `yaml:"ClientSecret"`
-}
-
-type TokenResponse struct {
-	AccessToken string `json:"access_token"`
-	TokenType   string `json:"token_type"`
-	ExpiresIn   int    `json:"expires_in"`
-	Scope       string `json:"scope"`
-}
-
 func main() {
-
-	err := godotenv.Load("creds.env") // Load .env file
+	id, secret, err := authenticate.GetCredsFromEnv("ANALYTICS_CLIENT_ID", "ANALYTICS_CLIENT_SECRET", "creds.env")
 	if err != nil {
-		log.Fatalf("Error loading .env file: %s", err)
+		log.Fatalf("Error reading credentials: %s", err)
 	}
 
-	creds, err := getCredsFromEnvOrFile()
+	token, err := authenticate.GetToken(id, secret)
 	if err != nil {
-		fmt.Println("Error reading credentials:", err)
-		return
-	}
-
-	token, err := getAppToken(creds)
-	if err != nil {
-		fmt.Println("Error getting app token:", err)
-		return
+		log.Fatalf("Error getting token: %s", err)
 	}
 
 	ids := make(map[string]bool)
@@ -74,51 +50,6 @@ func main() {
 	for flair := range uniqueFlairs {
 		fmt.Println(flair)
 	}
-}
-
-func getCredsFromEnvOrFile() (AppCreds, error) {
-	clientID := os.Getenv("ANALYTICS_CLIENT_ID")
-	clientSecret := os.Getenv("ANALYTICS_CLIENT_SECRET")
-
-	if clientID != "" && clientSecret != "" {
-		return AppCreds{ClientID: clientID, ClientSecret: clientSecret}, nil
-	}
-
-	return AppCreds{}, fmt.Errorf("Credentials not found in environment variables")
-}
-
-func getAppToken(creds AppCreds) (*TokenResponse, error) {
-	data := url.Values{}
-	data.Set("grant_type", "client_credentials")
-
-	req, err := http.NewRequest("POST", "https://www.reddit.com/api/v1/access_token", bytes.NewBufferString(data.Encode()))
-	if err != nil {
-		return nil, err
-	}
-
-	req.SetBasicAuth(creds.ClientID, creds.ClientSecret)
-	req.Header.Add("User-Agent", "MyApp/0.0.1")
-	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	var tokenResponse TokenResponse
-	err = json.Unmarshal(body, &tokenResponse)
-	if err != nil {
-		return nil, err
-	}
-
-	return &tokenResponse, nil
 }
 
 type Post struct {
