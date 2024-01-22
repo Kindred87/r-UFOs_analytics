@@ -40,7 +40,7 @@ func InitDB() error {
 	if os.IsNotExist(err) {
 		err = createDBFile()
 		if err != nil {
-			return err
+			return fmt.Errorf("error creating database file: %w", err)
 		}
 	}
 
@@ -101,23 +101,7 @@ func createDBFile() error {
 	}
 	file.Close()
 
-	db, err := sql.Open("sqlite3", analyticsFile)
-	if err != nil {
-		return fmt.Errorf("error opening database: %w", err)
-	}
-
-	if db == nil {
-		return sql.ErrConnDone
-	}
-
-	DB = db
-	err = DB.Ping()
-	if err != nil {
-		return fmt.Errorf("error pinging database: %w", err)
-	}
-
-	// Create table if the database file was just created
-	return createTable()
+	return nil
 }
 
 func CloseDB() error {
