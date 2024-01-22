@@ -6,18 +6,14 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"ufo_collector/authenticate"
 )
 
 func main() {
-	id, secret, err := authenticate.GetCredsFromEnv("ANALYTICS_CLIENT_ID", "ANALYTICS_CLIENT_SECRET", "creds.env")
+	token, err := login()
 	if err != nil {
-		log.Fatalf("Error reading credentials: %s", err)
-	}
-
-	token, err := authenticate.GetToken(id, secret)
-	if err != nil {
-		log.Fatalf("Error getting token: %s", err)
+		log.Fatalf("Error logging in: %s", err)
 	}
 
 	ids := make(map[string]bool)
@@ -50,6 +46,35 @@ func main() {
 	for flair := range uniqueFlairs {
 		fmt.Println(flair)
 	}
+}
+
+func login() (*authenticate.TokenResponse, error) {
+	var id, secret string
+	var err error
+
+	if _, err := os.Stat("creds.env"); err == nil {
+		// If the file exists
+		id, secret, err = authenticate.GetCredsFromEnv("ANALYTICS_CLIENT_ID", "ANALYTICS_CLIENT_SECRET", "creds.env")
+		if err != nil {
+			log.Fatalf("Error reading credentials: %s", err)
+		}
+	} else if os.IsNotExist(err) {
+		// If the file does not exist
+		id, secret, err = authenticate.GetCredsFromEnv("ANALYTICS_CLIENT_ID", "ANALYTICS_CLIENT_SECRET")
+		if err != nil {
+			log.Fatalf("Error reading credentials: %s", err)
+		}
+	} else {
+		// If there's an error checking the file
+		log.Fatalf("Error checking creds.env file: %s", err)
+	}
+
+	token, err := authenticate.GetToken(id, secret)
+	if err != nil {
+		log.Fatalf("Error getting token: %s", err)
+	}
+
+	return token, nil
 }
 
 type Post struct {
