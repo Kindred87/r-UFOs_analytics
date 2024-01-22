@@ -12,6 +12,8 @@ type Entity struct {
 	URL         string `json:"url"`
 	Flair       string `json:"link_flair_text"`
 	NumComments int    `json:"num_comments"`
+	Author      string `json:"author"` // Add this line
+	Created     int    `json:"created_utc"`
 }
 
 type Listing struct {

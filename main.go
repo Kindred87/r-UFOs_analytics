@@ -1,49 +1,81 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
+	"time"
 	"ufo_collector/authenticate"
+	"ufo_collector/database"
 	"ufo_collector/post"
 )
 
 func main() {
+	err := database.InitDB()
+	if err != nil {
+		log.Fatalf("Error initializing database: %s", err)
+	}
+	defer database.CloseDB()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Every ten minutes, sync the database
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+
+			err := database.SyncDB()
+			if err != nil {
+				fmt.Println("Error syncing database:", err)
+			}
+			fmt.Println("Synced database")
+			<-time.After(10 * time.Minute)
+		}
+	}()
+
 	token, err := login()
 	if err != nil {
 		log.Fatalf("Error logging in: %s", err)
 	}
 
-	ids := make(map[string]bool)
-	uniqueFlairs := make(map[string]bool)
-	totalComments := 0
 	after := ""
-	for i := 0; i < 10; i++ { // get 5 pages of posts
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
 
-		posts, nextAfter, err := post.GetRecent(token.AccessToken, after)
+		var posts []post.Entity
+		posts, after, err = post.GetRecent(token.AccessToken, after)
 		if err != nil {
 			fmt.Println("Error getting recent posts:", err)
-			return
+			continue
 		}
 
-		fmt.Printf("Processing page %d, %d posts\n", i+1, len(posts))
+		log.Printf("Retrieved %d posts at %s\n", len(posts), time.Now().Format("01/02/2006 15:04:05 PST"))
 
 		for _, post := range posts {
-			ids[post.ID] = true
-			uniqueFlairs[post.Flair] = true
-			totalComments += post.NumComments
+			// Convert UTC time to local time
+			t := time.Unix(int64(post.Created), 0)
+			// Format the time as mm/dd/yyyy hh:mm:ss pacific time
+			timestamp := t.Format("01/02/2006 15:04:05 PST")
+			err = database.AddPostHistory(post.ID, timestamp, post.Flair, post.URL, post.Author, post.NumComments)
+			if err != nil {
+				fmt.Println("Error adding post history for post", post.ID, ":", err)
+			}
 		}
 
-		after = nextAfter
-	}
-
-	fmt.Println("Total posts:", len(ids))
-
-	fmt.Println("Total comments:", totalComments)
-
-	fmt.Println("Unique flairs:")
-	for flair := range uniqueFlairs {
-		fmt.Println(flair)
+		// If there are 100 posts, get the next page immediately
+		if len(posts) != 100 {
+			<-time.After(30 * time.Second)
+		}
 	}
 }
 
