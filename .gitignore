@@ -18,6 +18,7 @@
 # vendor/
 
 creds.yaml
+*.env
 
 # Go workspace file
 go.work
