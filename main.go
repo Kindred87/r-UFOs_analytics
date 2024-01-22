@@ -25,7 +25,7 @@ type TokenResponse struct {
 }
 
 func main() {
-	creds, err := getCredsFromFile("creds.yaml")
+	creds, err := getCredsFromEnvOrFile("creds.yaml")
 	if err != nil {
 		fmt.Println("Error reading credentials:", err)
 		return
@@ -67,6 +67,17 @@ func main() {
 	for flair := range uniqueFlairs {
 		fmt.Println(flair)
 	}
+}
+
+func getCredsFromEnvOrFile(filename string) (AppCreds, error) {
+	clientID := os.Getenv("CLIENT_ID")
+	clientSecret := os.Getenv("CLIENT_SECRET")
+
+	if clientID != "" && clientSecret != "" {
+		return AppCreds{ClientID: clientID, ClientSecret: clientSecret}, nil
+	}
+
+	return getCredsFromFile(filename)
 }
 
 func getCredsFromFile(filename string) (AppCreds, error) {
